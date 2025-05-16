@@ -44,74 +44,49 @@
 #         kubectl apply -f k8s/
 
 # .github/workflows/deploy.yml
+
+
+# .github/workflows/deploy.yml
 name: Build & Deploy to EKS
-on:
-  push:
-    branches: [main]
+on: [push]
 
 permissions:
-  id-token: write          # OIDC
+  id-token: write
   contents: read
 
-env:                       # keep these in one place
-  AWS_REGION:      us-east-1
-  AWS_ACCOUNT_ID:  630288222109   # <- same account that owns ECR & EKS
+env:
+  AWS_REGION:     us-east-1
+  AWS_ACCOUNT_ID: 630288222109
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-    # 0️⃣  Checkout source
     - uses: actions/checkout@v3
 
-    # 1️⃣  Assume the OIDC role (stored in secret AWS_ROLE_ARN)
     - uses: aws-actions/configure-aws-credentials@v2
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region:     ${{ env.AWS_REGION }}
 
-    # 2️⃣  Login to the SAME account’s ECR
     - uses: aws-actions/amazon-ecr-login@v1
 
-    # 3️⃣  Build, tag and push all five images
-    - name: Build, tag & push Docker images
+    - name: Build, tag & push images
       run: |
-        declare -A SERVICES=(
-          [Gateway]=gateway-service
-          [IT21310546]=it21310546-service
-          [IT21311772]=it21311772-service
-          [IT21467448]=it21467448-service
-          [IT21894510]=it21894510-service
-        )
-        for DIR in "${!SERVICES[@]}"; do
-          IMG=${SERVICES[$DIR]}
-          echo "👉  $IMG"
+        declare -A S=([Gateway]=gateway-service \
+                      [IT21310546]=it21310546-service \
+                      [IT21311772]=it21311772-service \
+                      [IT21467448]=it21467448-service \
+                      [IT21894510]=it21894510-service)
+        for DIR in "${!S[@]}"; do
+          IMG=${S[$DIR]}
           docker build -t $IMG ./$DIR
           docker tag  $IMG:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMG:latest
           docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMG:latest
         done
 
-    # 4️⃣  kubectl (azure/setup-kubectl is the quickest action)
     - uses: azure/setup-kubectl@v4
 
-    # 5️⃣  eksctl (one-line install, 2 MB)
-    - name: Install eksctl
-      run: |
-        curl -sL "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz" \
-        | sudo tar -xz -C /usr/local/bin
-
-    # 6️⃣  Ensure the runner’s IAM role is authorised in the cluster (idempotent)
-    - name: Map GitHub role into EKS
-      run: |
-        eksctl create iamidentitymapping \
-          --cluster  nodejs-microservices \
-          --region   $AWS_REGION \
-          --arn      ${{ secrets.AWS_ROLE_ARN }} \
-          --group    system:masters \
-          --username github-actions || true   # <-- succeeds even if mapping exists
-
-    # 7️⃣  Update kubeconfig & apply all manifests
     - name: Deploy to EKS
       run: |
         aws eks update-kubeconfig --name nodejs-microservices --region $AWS_REGION
