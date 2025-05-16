@@ -1,53 +1,5 @@
-# name: Deploy to EKS
-# on: [push]
-
-# permissions:
-#   id-token: write
-#   contents: read
-
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
-#     env:
-#       AWS_REGION: ${{ secrets.AWS_REGION }}    # makes it available to all steps
-#     steps:
-#     - uses: actions/checkout@v3
-
-#     - uses: aws-actions/configure-aws-credentials@v2
-#       with:
-#         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-#         aws-region: ${{ env.AWS_REGION }}
-
-#     - uses: aws-actions/amazon-ecr-login@v1     # logs in to 124355653119.dkr.ecr.us-east-1.amazonaws.com
-
-#     - name: Build, tag & push
-#       run: |
-#         ACC=630288222109
-#         AWS_REG=$AWS_REGION 
-        
-#          docker build -t gateway-service ./Gateway
-#          docker tag   gateway-service:latest $ACC.dkr.ecr.$AWS_REG.amazonaws.com/gateway-service:latest
-#          docker push  $ACC.dkr.ecr.$AWS_REG.amazonaws.com/gateway-service:latest
-
-#         for DIR in IT21310546 IT21311772 IT21467448 IT21894510; do
-#           IMG=$(echo "$DIR" | tr '[:upper:]' '[:lower:]')-service
-#           docker build -t $IMG ./$DIR
-#           docker tag   $IMG:latest $ACC.dkr.ecr.$AWS_REGION.amazonaws.com/$IMG:latest
-#           docker push  $ACC.dkr.ecr.$AWS_REGION.amazonaws.com/$IMG:latest
-#         done
-
-#     - uses: azure/setup-kubectl@v4
-
-#     - name: Update kubeconfig & apply
-#       run: |
-#         aws eks update-kubeconfig --name nodejs-microservices --region $AWS_REGION
-#         kubectl apply -f k8s/
-
-
 name: Deploy to EKS
-on:
-  push:
-    branches: [ main ]
+on: [push]
 
 permissions:
   id-token: write
@@ -57,55 +9,36 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      ECR_ACCOUNT: 630288222109
-
+      AWS_REGION: ${{ secrets.AWS_REGION }}    # makes it available to all steps
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+    - uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
 
-      - name: Ensure ECR repos exist
-        run: |
-          for repo in gateway-service \
-                      it21310546-service \
-                      it21311772-service \
-                      it21467448-service \
-                      it21894510-service; do
-            aws ecr create-repository \
-              --repository-name "$repo" \
-              --region $AWS_REGION \
-            || true
-          done
+    - uses: aws-actions/amazon-ecr-login@v1     # logs in to 124355653119.dkr.ecr.us-east-1.amazonaws.com
 
-      - name: Build, tag & push images
-        run: |
-          # Gateway
-          docker build -t gateway-service ./Gateway
-          docker tag gateway-service:latest \
-             $ECR_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/gateway-service:latest
-          docker push $ECR_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/gateway-service:latest
+    - name: Build, tag & push
+      run: |
+        ACC=630288222109
+        AWS_REG=$AWS_REGION 
+        
+         docker build -t gateway-service ./Gateway
+         docker tag   gateway-service:latest $ACC.dkr.ecr.$AWS_REG.amazonaws.com/gateway-service:latest
+         docker push  $ACC.dkr.ecr.$AWS_REG.amazonaws.com/gateway-service:latest
 
-          # Other microservices
-          for DIR in IT21310546 IT21311772 IT21467448 IT21894510; do
-            IMG=$(echo "$DIR" | tr '[:upper:]' '[:lower:]')-service
-            docker build -t $IMG ./$DIR
-            docker tag $IMG:latest \
-              $ECR_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/$IMG:latest
-            docker push $ECR_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/$IMG:latest
-          done
+        for DIR in IT21310546 IT21311772 IT21467448 IT21894510; do
+          IMG=$(echo "$DIR" | tr '[:upper:]' '[:lower:]')-service
+          docker build -t $IMG ./$DIR
+          docker tag   $IMG:latest $ACC.dkr.ecr.$AWS_REGION.amazonaws.com/$IMG:latest
+          docker push  $ACC.dkr.ecr.$AWS_REGION.amazonaws.com/$IMG:latest
+        done
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
+    - uses: azure/setup-kubectl@v4
 
-      - name: Update kubeconfig & deploy to EKS
-        run: |
-          aws eks update-kubeconfig \
-            --name nodejs-microservices \
-            --region $AWS_REGION
-          kubectl apply -f k8s/
+    - name: Update kubeconfig & apply
+      run: |
+        aws eks update-kubeconfig --name nodejs-microservices --region $AWS_REGION
+        kubectl apply -f k8s/
