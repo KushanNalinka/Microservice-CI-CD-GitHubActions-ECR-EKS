@@ -90,4 +90,14 @@ jobs:
     - name: Deploy to EKS
       run: |
         aws eks update-kubeconfig --name nodejs-microservices --region $AWS_REGION
-        kubectl apply -f k8s/
+        
+         # Re-apply every YAML under k8s/
+        kubectl apply -R -f k8s/
+
+        # Force-restart each Deployment so it pulls :latest
+        kubectl rollout restart \
+          deployment/gateway-service \
+          deployment/it21310546-service \
+          deployment/it21311772-service \
+          deployment/it21467448-service \
+          deployment/it21894510-service
