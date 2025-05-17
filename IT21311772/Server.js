@@ -51,5 +51,5 @@ mongoose.connection.once('open', () => {
 })
 
 app.get('/', (req, res) => {
-    res.send('Welcome to the Rishen Negambo Service!');
+    res.send('Welcome to the Product Service!');
 });

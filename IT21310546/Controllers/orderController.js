@@ -14,13 +14,13 @@ export const createOrder = async (req, res) => {
     if (!validator.isEmail(email)) return res.status(400).json({ message: 'Please enter a valid email address' });
 
     try {
-        const productResponse = await axios.get(`http://localhost:8000/s2/api/${productId}`);
+        const productResponse = await axios.get(`http://a25b6705fa6af417bb7ff5a04e4bd65e-1348242497.us-east-1.elb.amazonaws.com/service2/api/${productId}`);
         const product = productResponse.data;
 
         if (!product) return res.status(404).json({ message: 'Product not found' });
         if (product.remainingQuantity < quantity) return res.status(400).json({ message: 'Insufficient product quantity' });
 
-        await axios.patch(`http://localhost:8000/s2/api/${productId}`, { quantity });
+        await axios.patch(`http://a25b6705fa6af417bb7ff5a04e4bd65e-1348242497.us-east-1.elb.amazonaws.com/service2/api/${productId}`, { quantity });
 
         const createdOrder = await Orders.create({
             quantity,
